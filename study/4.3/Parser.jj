@@ -49,13 +49,13 @@ TOKEN: {
 }
 
 // 跳过空白字符
-TOKEN: {
+SPECIAL_TOKEN: {
         <SPACES: ([" ", "\t", "\n", "\r", "\f"])+>
 }
 
 
 // 跳过行注释
-TOKEN: {
+SPECIAL_TOKEN: {
         <LINE_COMMENT: "//" (~["\n", "\r"])* (["\n" | "\r\n" | "\r"])?>
 }
 
