@@ -1,0 +1,50 @@
+// 描述了保留字规则
+TOKEN: {
+	//<token 名1 : 正则表达式1>
+	<VOID		: "void">|
+	<CHAR		: "char">|
+	<SHORT		: "short">|
+	<INT		: "int">|
+	<LONG		: "Long">|
+	<STRUCT		: "struct">|
+	<UNION		: "union">|
+	<ENUM		: "enum">|
+	<STATIC		: "static">|
+	<EXTERN		: "extern">|
+	<CONST		: "const">|
+	<SIGNED		: "signed">|
+	<UNSIGNED	: "unsigned">|
+	<IF		: "if">|
+	<ELSE		: "else">|
+	<SWITCH		: "switch">|
+	<CASE		: "case">|
+	<DEFAULT	: "default">|
+	<WHILE		: "while">|
+	<DO		: "do">|
+	<FOR		: "for">|
+	<RETUEN		: "return">|
+	<BREAK		: "break">|
+	<CONTINUE	: "continue">|
+	<GOTO		: "goto">|
+	<TYPEDEF	: "typedef">|
+	<IMPORT		: "import">|
+	<SIZEOF		: "sizeof">|
+}
+
+// 标识符规则: 首个字符是 字母数字下划线, 后续字符是字母数字下划线和数字.
+TOKEN: {
+	// identifier: 标识符
+	<IDENTIFIER: ["a"-"z", "A"-"Z", "_"] ( ["a"-"z", "A"-"Z", "_", "0"-"9"] )*)>
+}
+
+// 数值
+// 第一条是 十进制
+// 第二条是 十六进制
+// 第三条是 八进制
+TOKEN: {
+	<INTEGER: ["1"-"9"] 	(["0"-"9"])*			("U")? ("L")?|
+	"0"["x", "X"] 		(["0"-"9", "a"-"f", "A"-"F"])+	("U")? ("L")?|
+	"0"(["0"-"7"])*						("U")? ("L")?
+	>
+}
+
