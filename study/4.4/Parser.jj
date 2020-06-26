@@ -1,0 +1,85 @@
+// 描述了保留字规则
+TOKEN: {
+	//<token 名1 : 正则表达式1>
+	<VOID		: "void">|
+	<CHAR		: "char">|
+	<SHORT		: "short">|
+	<INT		: "int">|
+	<LONG		: "Long">|
+	<STRUCT		: "struct">|
+	<UNION		: "union">|
+	<ENUM		: "enum">|
+	<STATIC		: "static">|
+	<EXTERN		: "extern">|
+	<CONST		: "const">|
+	<SIGNED		: "signed">|
+	<UNSIGNED	: "unsigned">|
+	<IF		: "if">|
+	<ELSE		: "else">|
+	<SWITCH		: "switch">|
+	<CASE		: "case">|
+	<DEFAULT	: "default">|
+	<WHILE		: "while">|
+	<DO		: "do">|
+	<FOR		: "for">|
+	<RETUEN		: "return">|
+	<BREAK		: "break">|
+	<CONTINUE	: "continue">|
+	<GOTO		: "goto">|
+	<TYPEDEF	: "typedef">|
+	<IMPORT		: "import">|
+	<SIZEOF		: "sizeof">|
+}
+
+// 标识符规则: 首个字符是 字母数字下划线, 后续字符是字母数字下划线和数字.
+TOKEN: {
+	// identifier: 标识符
+	<IDENTIFIER: ["a"-"z", "A"-"Z", "_"] ( ["a"-"z", "A"-"Z", "_", "0"-"9"] )*)>
+}
+
+// 数值
+// 第一条是 十进制
+// 第二条是 十六进制
+// 第三条是 八进制
+TOKEN: {
+	<INTEGER: ["1"-"9"] 	(["0"-"9"])*			("U")? ("L")?|
+	"0"["x", "X"] 		(["0"-"9", "a"-"f", "A"-"F"])+	("U")? ("L")?|
+	"0"(["0"-"7"])*						("U")? ("L")?
+	>
+}
+
+// 跳过空白字符
+SPECIAL_TOKEN: {
+        <SPACES: ([" ", "\t", "\n", "\r", "\f"])+>
+}
+
+
+// 跳过行注释
+SPECIAL_TOKEN: {
+        <LINE_COMMENT: "//" (~["\n", "\r"])* (["\n" | "\r\n" | "\r"])?>
+}
+
+// 跳过块注释
+MORE: { <"/*"> : IN_BLOCK_COMMENT }   // 状态迁移至IN_BLOCK_COMMENT
+// 下面的两个语句,只要有一个不满足,就会报错
+<IN_BLOCK_COMMENT> MORE: { <~[]> }    // 匹配任意字符
+<IN_BLOCK_COMMENT> SPECIAL_TOKEN: { <"*/"> : DEFAULT }
+
+// 扫描字符串字面量
+MORE: { <"\""> : IN_STRING }            // 扫描到 " 时,跳转到 IN_STRING
+<IN_STRING> MORE: {
+        // " 后面跟的 不是 " \\ \n \t 或 eg: \\521 或 eg: \\任意东西
+        <(~["\"", "\\", "\n", "\t"])+> | <"\\"("0"-"7"){3}> | <"\\"(~[])>
+}
+<IN_STRING> TOKEN: { <"\""> : DEFAULT }
+
+// 扫描字符字面量
+MORE: { <"'"> : IN_CHARACTER }
+<IN_CHARACTER> MORE: {
+        <~["'", "\\", "\n", "\t"])> : CHARACTER_TERM
+        | <"//"("0"-"7"){3}>        : CHARACTER_TERM
+        | <"//"~[]>                 : CHARACTER_TERM
+}
+<CHARACTER_TERM> TOKEN: { <"'"> : DEFAULT }
+
+
