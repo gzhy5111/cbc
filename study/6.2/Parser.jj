@@ -1,0 +1,214 @@
+/* 从4.4节拷贝过来代码 */
+
+// 描述了保留字规则
+TOKEN: {
+	//<token 名1 : 正则表达式1>
+	<VOID		: "void">|
+	<CHAR		: "char">|
+	<SHORT		: "short">|
+	<INT		: "int">|
+	<LONG		: "long">|
+	<STRUCT		: "struct">|
+	<UNION		: "union">|
+	<ENUM		: "enum">|
+	<STATIC		: "static">|
+	<EXTERN		: "extern">|
+	<CONST		: "const">|
+	<SIGNED		: "signed">|
+	<UNSIGNED	: "unsigned">|
+	<IF		    : "if">|
+	<ELSE		: "else">|
+	<SWITCH		: "switch">|
+	<CASE		: "case">|
+	<DEFAULT	: "default">|
+	<WHILE		: "while">|
+	<DO		    : "do">|
+	<FOR		: "for">|
+	<RETUEN		: "return">|
+	<BREAK		: "break">|
+	<CONTINUE	: "continue">|
+	<GOTO		: "goto">|
+	<TYPEDEF	: "typedef">|
+	<IMPORT		: "import">|
+	<SIZEOF		: "sizeof">|
+}
+
+// 标识符规则: 首个字符是 字母数字下划线, 后续字符是字母数字下划线和数字.
+TOKEN: {
+	// identifier: 标识符
+	<IDENTIFIER: ["a"-"z", "A"-"Z", "_"] ( ["a"-"z", "A"-"Z", "_", "0"-"9"] )*)>
+}
+
+// 数值
+// 第一条是 十进制
+// 第二条是 十六进制
+// 第三条是 八进制
+TOKEN: {
+	<INTEGER: ["1"-"9"] 	(["0"-"9"])*			    ("U")? ("L")?|
+	"0"["x", "X"] 		(["0"-"9", "a"-"f", "A"-"F"])+	("U")? ("L")?|
+	"0"(["0"-"7"])*						                ("U")? ("L")?
+	>
+}
+
+// 跳过空白字符
+SPECIAL_TOKEN: {
+        <SPACES: ([" ", "\t", "\n", "\r", "\f"])+>
+}
+
+
+// 跳过行注释
+SPECIAL_TOKEN: {
+        <LINE_COMMENT: "//" (~["\n", "\r"])* (["\n" | "\r\n" | "\r"])?>
+}
+
+// 跳过块注释
+MORE: { <"/*"> : IN_BLOCK_COMMENT }   // 状态迁移至IN_BLOCK_COMMENT
+// 下面的两个语句,只要有一个不满足,就会报错
+<IN_BLOCK_COMMENT> MORE: { <~[]> }    // 匹配任意字符
+<IN_BLOCK_COMMENT> SPECIAL_TOKEN: { <"*/"> : DEFAULT }
+
+// 扫描字符串字面量
+MORE: { <"\""> : IN_STRING }            // 扫描到 " 时,跳转到 IN_STRING
+<IN_STRING> MORE: {
+        // " 后面跟的 不是 " \\ \n \t 或 eg: \\521 或 eg: \\任意东西
+        <(~["\"", "\\", "\n", "\t"])+> | <"\\"("0"-"7"){3}> | <"\\"(~[])>
+}
+<IN_STRING> TOKEN: { <"\""> : DEFAULT }
+
+// 扫描字符字面量
+MORE: { <"'"> : IN_CHARACTER }
+<IN_CHARACTER> MORE: {
+        <~["'", "\\", "\n", "\t"])> : CHARACTER_TERM
+        | <"//"("0"-"7"){3}>        : CHARACTER_TERM
+        | <"//"~[]>                 : CHARACTER_TERM
+}
+<CHARACTER_TERM> TOKEN: { <"'"> : DEFAULT }
+
+/* 第6章: 语法分析 */
+/* 6.1 定义的分析 */
+// 表示程序的一个大整体语法规则
+compilation_unit(): {}
+{
+    // Cb文件的开头是数个import声明
+    // 然后是函数声明
+    // 最后是文件的结束标记
+    import_stmts() top_defs() <EOF>
+}
+// import声明列表的语法规则
+import_stmts(): {}
+{
+    // 形如 import ... 的声明列表
+    import_stmt() *     // 重复0次或多次,也就是说在一个Cb文件中,import语句可以没有也可以有很多个
+}
+// import语句规则
+import_stmt(): {}
+{
+    // 形如 import stdio;
+    //      import sys.types;
+    <IMPORT> <IDENTIFIER>("."<IDENTIFIER>)* ";"
+}
+// 定义的语法: 包含变量定义 函数定义 结构体\联合体定义 结构体成员\联合体成员语法 typedef语句的语法 类型的语法
+// 注意：因为刚学，我们只实现变量定义，其他内容我们以后再实现。
+top_defs: {}
+{
+    // 为了区分函数定义和变量定义
+    // storage()是[STATIC]，代表static是否声明的意思
+    // eg:
+    // 函数定义：[static] 函数名 (参数);
+    // 函数定义语法规则与变量定义的规则区别是：是否含有左括号，如果出现左括号就是下面的规则类型，它代表函数定义，而不是变量定义。
+    // LOOKAHEAD(3)是为了区分def_vars、def_const、def_struct、def_union所向前看3个字符
+    def_vars()
+}
+// 变量定义
+def_vars(): {}
+{
+    // eg：int a;
+    // int a = 20;
+    // int a, b = 30;
+    storage() type() name() ["=" expr()] ("," name() ["=" expr()])* ";"
+}
+storage(): {}
+{
+    [<STATIC>]      // storage()是可以省略的static
+}
+type(): {}
+{
+    typeref()
+}
+// 类型的语法
+typeref(): {}
+{
+    typeref_base()
+}
+// 基本类型的语法
+typeref_base(): {}
+{
+    <VOID> | <CHAR> | <SHORT> | <INT> | <LONG>
+    // unsigned char 和 unsigned short 等开头的规则是一样的，所以必须使用LOOKAHEAD来解决冲突。
+    | LOOKAHEAD(2) <UNSIGNED> <CHAR>
+    | LOOKAHEAD(2) <UNSIGNED> <SHORT>
+    | LOOKAHEAD(2) <UNSIGNED> <INT>
+    | LOOKAHEAD(2) <UNSIGNED> <LONG>
+}
+
+
+
+/* 6.2 语句的语法 */
+// 语句列表
+stmts(): {}
+{
+    // 允许一个程序中什么语句都没有
+    (stmt())*
+}
+stmt(): {}
+{
+    // 表达式直接跟;也代表一个语句
+    // block是由{和}围起来的，也代表语句
+    ";" | expr() ";" | block(); | if_stmt() | while_stmt() | for_stmt() | break_stmt() | | continue_stmt() | return_stmt()
+}
+// if语句
+// if最外围的两个花括号也是属于if语句，下面的while、for语句也是同样的。
+if_stmt(): {}
+{
+    <IF> "(" expr() ")"
+    "{"
+        stmts()
+    "}"
+    [<ELSE>
+    "{"
+        stmts()
+    "}"]
+
+}
+// while语句
+while_stmt(): {}
+{
+    <WHILE> "(" expr() ")"
+    "{"
+        stmt()
+    "}"
+}
+// for语句
+for_stmt(): {}
+{
+    <FOR> "(" [expr()] ; [expr()] ; [expr()] ")"
+    "{"
+        stmt()
+    "}"
+}
+// break语句
+break_stmt(): {}
+{
+    <BREAK>";"
+}
+// continue语句
+continue_stmt(): {}
+{
+   <CONTINUE>";"
+}
+// return语句
+return_stmt():{}
+{
+    LOOKAHEAD(2)<RETUEN> ";"
+    <RETUEN> expr() ";"
+}
